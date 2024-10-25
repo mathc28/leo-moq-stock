@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock à Livrer App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .upload-section, .result-section, .projection-section {
+            margin-bottom: 20px;
+        }
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .result-table th, .result-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        .result-table th {
+            background-color: #f2f2f2;
+        }
+        .result-table .group-header {
+            background-color: #e6e6e6;
+            font-weight: bold;
+            text-align: left;
+            padding-left: 10px;
+        }
+        .result-table .sub-total {
+            background-color: #f9f9f9;
+            font-weight: bold;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">function sendEmail() {
+            const recipient = confirm("Envoyer à Arthur ou Léo?") ? "arthur.gaudenz@polimair.fr" : "leo.gaudenz@polimair.fr";
+            const subject = "Analyse Stock et MOQ";
+            const body = `Bonjour,
+
+Voici le rapport d'analyse du stock ainsi que les projections de MOQ basées sur les ventes à date.
+Le tableau contient des informations détaillées sur les différentes couleurs et types de pièces, ainsi que les quantités nécessaires pour chaque partie.
+
+N'hésite pas à me faire part de tes remarques ou questions.
+
+Cordialement,`;
+
+            window.location.href = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        }
+
+        // Set the current date in the import date span
+        document.addEventListener('DOMContentLoaded', () => {
+            const date = new Date();
+            const formattedDate = date.toLocaleDateString('fr-FR');
+            document.getElementById('importDate').textContent = formattedDate;
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h2>Stock à Livrer - App</h2>
+
+        <!-- Total Number of Products Button -->
+        <button onclick="calculateTotalProducts()">Nombre total de produits</button>
+        <span id="totalProducts" style="font-weight: bold; margin-left: 10px;">0</span>
+
+        <!-- Upload Section -->
+        <div class="upload-section">
+            <h3>Importer un fichier CSV ou Excel</h3>
+            <button onclick="sendEmail()">Envoyer par mail</button>
+            <input type="file" id="fileInput" accept=".csv, .xlsx">
+            <button onclick="processFile()">Importer et Analyser</button>
+        </div>
+
+        <!-- Result Section -->
+        <div class="result-section">
+            <h3>Ventes à date du <span id="importDate"></span></h3>
+            <table class="result-table" id="resultTable">
+                <thead>
+                    <tr>
+                        <th>Couleur</th>
+                        <th>SKU</th>
+                        <th>Quantité</th>
+                        <th>%</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="group-header">
+                        <td colspan="4">Assise</td>
+                    </tr>
+                    <tr>
+                        <td>Rouge</td>
+                        <td>BELSIEROU</td>
+                        <td id="qty-BELSIEROU">0</td>
+                        <td id="perc-BELSIEROU">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Noir</td>
+                        <td>BELSIENOI</td>
+                        <td id="qty-BELSIENOI">0</td>
+                        <td id="perc-BELSIENOI">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Blanc</td>
+                        <td>BELSIEBLA</td>
+                        <td id="qty-BELSIEBLA">0</td>
+                        <td id="perc-BELSIEBLA">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Bleu</td>
+                        <td>BELSIEBLE</td>
+                        <td id="qty-BELSIEBLE">0</td>
+                        <td id="perc-BELSIEBLE">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Vert</td>
+                        <td>BELSIEVER</td>
+                        <td id="qty-BELSIEVER">0</td>
+                        <td id="perc-BELSIEVER">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Jaune</td>
+                        <td>BELSIEJAU</td>
+                        <td id="qty-BELSIEJAU">0</td>
+                        <td id="perc-BELSIEJAU">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Menthe</td>
+                        <td>BELSIEMEN</td>
+                        <td id="qty-BELSIEMEN">0</td>
+                        <td id="perc-BELSIEMEN">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Pêche</td>
+                        <td>BELSIEPEC</td>
+                        <td id="qty-BELSIEPEC">0</td>
+                        <td id="perc-BELSIEPEC">0%</td>
+                    </tr>
+                    <tr class="sub-total">
+                        <td colspan="2">Total Assise</td>
+                        <td id="total-assise">0</td>
+                        <td>100%</td>
+                    </tr>
+                    <tr class="group-header">
+                        <td colspan="4">Dossier</td>
+                    </tr>
+                    <tr>
+                        <td>Rouge</td>
+                        <td>BELDOSROU</td>
+                        <td id="qty-BELDOSROU">0</td>
+                        <td id="perc-BELDOSROU">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Noir</td>
+                        <td>BELDOSNOI</td>
+                        <td id="qty-BELDOSNOI">0</td>
+                        <td id="perc-BELDOSNOI">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Blanc</td>
+                        <td>BELDOSBLA</td>
+                        <td id="qty-BELDOSBLA">0</td>
+                        <td id="perc-BELDOSBLA">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Bleu</td>
+                        <td>BELDOSBLE</td>
+                        <td id="qty-BELDOSBLE">0</td>
+                        <td id="perc-BELDOSBLE">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Vert</td>
+                        <td>BELDOSVER</td>
+                        <td id="qty-BELDOSVER">0</td>
+                        <td id="perc-BELDOSVER">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Jaune</td>
+                        <td>BELDOSJAU</td>
+                        <td id="qty-BELDOSJAU">0</td>
+                        <td id="perc-BELDOSJAU">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Menthe</td>
+                        <td>BELDOSMEN</td>
+                        <td id="qty-BELDOSMEN">0</td>
+                        <td id="perc-BELDOSMEN">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Pêche</td>
+                        <td>BELDOSPEC</td>
+                        <td id="qty-BELDOSPEC">0</td>
+                        <td id="perc-BELDOSPEC">0%</td>
+                    </tr>
+                    <tr class="sub-total">
+                        <td colspan="2">Total Dossier</td>
+                        <td id="total-dossier">0</td>
+                        <td>100%</td>
+                    </tr>
+                    <tr class="group-header">
+                        <td colspan="4">Pied Gauche</td>
+                    </tr>
+                    <tr>
+                        <td>Rouge</td>
+                        <td>BELGAUROU</td>
+                        <td id="qty-BELGAUROU">0</td>
+                        <td id="perc-BELGAUROU">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Noir</td>
+                        <td>BELGAUNOI</td>
+                        <td id="qty-BELGAUNOI">0</td>
+                        <td id="perc-BELGAUNOI">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Blanc</td>
+                        <td>BELGAUBLA</td>
+                        <td id="qty-BELGAUBLA">0</td>
+                        <td id="perc-BELGAUBLA">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Bleu</td>
+                        <td>BELGAUBLE</td>
+                        <td id="qty-BELGAUBLE">0</td>
+                        <td id="perc-BELGAUBLE">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Vert</td>
+                        <td>BELGAUVER</td>
+                        <td id="qty-BELGAUVER">0</td>
+                        <td id="perc-BELGAUVER">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Jaune</td>
+                        <td>BELGAUJAU</td>
+                        <td id="qty-BELGAUJAU">0</td>
+                        <td id="perc-BELGAUJAU">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Menthe</td>
+                        <td>BELGAUMEN</td>
+                        <td id="qty-BELGAUMEN">0</td>
+                        <td id="perc-BELGAUMEN">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Pêche</td>
+                        <td>BELGAUPEC</td>
+                        <td id="qty-BELGAUPEC">0</td>
+                        <td id="perc-BELGAUPEC">0%</td>
+                    </tr>
+                    <tr class="sub-total">
+                        <td colspan="2">Total Pied Gauche</td>
+                        <td id="total-pied-gauche">0</td>
+                        <td>100%</td>
+                    </tr>
+                    <tr class="group-header">
+                        <td colspan="4">Pied Droit</td>
+                    </tr>
+                    <tr>
+                        <td>Rouge</td>
+                        <td>BELDROROU</td>
+                        <td id="qty-BELDROROU">0</td>
+                        <td id="perc-BELDROROU">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Noir</td>
+                        <td>BELDRONOI</td>
+                        <td id="qty-BELDRONOI">0</td>
+                        <td id="perc-BELDRONOI">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Blanc</td>
+                        <td>BELDROBLA</td>
+                        <td id="qty-BELDROBLA">0</td>
+                        <td id="perc-BELDROBLA">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Bleu</td>
+                        <td>BELDROBLE</td>
+                        <td id="qty-BELDROBLE">0</td>
+                        <td id="perc-BELDROBLE">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Vert</td>
+                        <td>BELDROVER</td>
+                        <td id="qty-BELDROVER">0</td>
+                        <td id="perc-BELDROVER">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Jaune</td>
+                        <td>BELDROJAU</td>
+                        <td id="qty-BELDROJAU">0</td>
+                        <td id="perc-BELDROJAU">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Menthe</td>
+                        <td>BELDROMEN</td>
+                        <td id="qty-BELDROMEN">0</td>
+                        <td id="perc-BELDROMEN">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Pêche</td>
+                        <td>BELDROPEC</td>
+                        <td id="qty-BELDROPEC">0</td>
+                        <td id="perc-BELDROPEC">0%</td>
+                    </tr>
+                    <tr class="sub-total">
+                        <td colspan="2">Total Pied Droit</td>
+                        <td id="total-pied-droit">0</td>
+                        <td>100%</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Projection Section -->
+        <div class="projection-section">
+            <h3>Projection - Stock à Commander</h3>
+            <label for="moqInput">MOQ Production:</label>
+            <input type="number" id="moqInput" value="1000" min="1">
+            <button onclick="calculateProjection()">Calculer la Projection</button>
+
+            <!-- Assise Projection Table -->
+            <h4>Projection Assise</h4>
+            <table class="result-table" id="projectionTableAssise">
+                <thead>
+                    <tr>
+                        <th>Couleur</th>
+                        <th>SKU</th>
+                        <th>Quantité à Commander</th>
+                        <th>%</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Rouge</td>
+                        <td>BELSIEROU</td>
+                        <td id="proj-qty-BELSIEROU">0</td>
+                        <td id="proj-perc-BELSIEROU">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Noir</td>
+                        <td>BELSIENOI</td>
+                        <td id="proj-qty-BELSIENOI">0</td>
+                        <td id="proj-perc-BELSIENOI">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Blanc</td>
+                        <td>BELSIEBLA</td>
+                        <td id="proj-qty-BELSIEBLA">0</td>
+                        <td id="proj-perc-BELSIEBLA">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Bleu</td>
+                        <td>BELSIEBLE</td>
+                        <td id="proj-qty-BELSIEBLE">0</td>
+                        <td id="proj-perc-BELSIEBLE">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Vert</td>
+                        <td>BELSIEVER</td>
+                        <td id="proj-qty-BELSIEVER">0</td>
+                        <td id="proj-perc-BELSIEVER">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Jaune</td>
+                        <td>BELSIEJAU</td>
+                        <td id="proj-qty-BELSIEJAU">0</td>
+                        <td id="proj-perc-BELSIEJAU">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Menthe</td>
+                        <td>BELSIEMEN</td>
+                        <td id="proj-qty-BELSIEMEN">0</td>
+                        <td id="proj-perc-BELSIEMEN">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Pêche</td>
+                        <td>BELSIEPEC</td>
+                        <td id="proj-qty-BELSIEPEC">0</td>
+                        <td id="proj-perc-BELSIEPEC">0%</td>
+                    </tr>
+                    <tr class="sub-total">
+                        <td colspan="2">Total Assise</td>
+                        <td id="proj-total-assise">0</td>
+                        <td>100%</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Dossier Projection Table -->
+            <h4>Projection Dossier</h4>
+            <table class="result-table" id="projectionTableDossier">
+                <thead>
+                    <tr>
+                        <th>Couleur</th>
+                        <th>SKU</th>
+                        <th>Quantité à Commander</th>
+                        <th>%</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Rouge</td>
+                        <td>BELDOSROU</td>
+                        <td id="proj-qty-BELDOSROU">0</td>
+                        <td id="proj-perc-BELDOSROU">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Noir</td>
+                        <td>BELDOSNOI</td>
+                        <td id="proj-qty-BELDOSNOI">0</td>
+                        <td id="proj-perc-BELDOSNOI">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Blanc</td>
+                        <td>BELDOSBLA</td>
+                        <td id="proj-qty-BELDOSBLA">0</td>
+                        <td id="proj-perc-BELDOSBLA">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Bleu</td>
+                        <td>BELDOSBLE</td>
+                        <td id="proj-qty-BELDOSBLE">0</td>
+                        <td id="proj-perc-BELDOSBLE">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Vert</td>
+                        <td>BELDOSVER</td>
+                        <td id="proj-qty-BELDOSVER">0</td>
+                        <td id="proj-perc-BELDOSVER">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Jaune</td>
+                        <td>BELDOSJAU</td>
+                        <td id="proj-qty-BELDOSJAU">0</td>
+                        <td id="proj-perc-BELDOSJAU">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Menthe</td>
+                        <td>BELDOSMEN</td>
+                        <td id="proj-qty-BELDOSMEN">0</td>
+                        <td id="proj-perc-BELDOSMEN">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Pêche</td>
+                        <td>BELDOSPEC</td>
+                        <td id="proj-qty-BELDOSPEC">0</td>
+                        <td id="proj-perc-BELDOSPEC">0%</td>
+                    </tr>
+                    <tr class="sub-total">
+                        <td colspan="2">Total Dossier</td>
+                        <td id="proj-total-dossier">0</td>
+                        <td>100%</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Pied Gauche Projection Table -->
+            <h4>Projection Pied Gauche</h4>
+            <table class="result-table" id="projectionTablePiedGauche">
+                <thead>
+                    <tr>
+                        <th>Couleur</th>
+                        <th>SKU</th>
+                        <th>Quantité à Commander</th>
+                        <th>%</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Rouge</td>
+                        <td>BELGAUROU</td>
+                        <td id="proj-qty-BELGAUROU">0</td>
+                        <td id="proj-perc-BELGAUROU">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Noir</td>
+                        <td>BELGAUNOI</td>
+                        <td id="proj-qty-BELGAUNOI">0</td>
+                        <td id="proj-perc-BELGAUNOI">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Blanc</td>
+                        <td>BELGAUBLA</td>
+                        <td id="proj-qty-BELGAUBLA">0</td>
+                        <td id="proj-perc-BELGAUBLA">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Bleu</td>
+                        <td>BELGAUBLE</td>
+                        <td id="proj-qty-BELGAUBLE">0</td>
+                        <td id="proj-perc-BELGAUBLE">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Vert</td>
+                        <td>BELGAUVER</td>
+                        <td id="proj-qty-BELGAUVER">0</td>
+                        <td id="proj-perc-BELGAUVER">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Jaune</td>
+                        <td>BELGAUJAU</td>
+                        <td id="proj-qty-BELGAUJAU">0</td>
+                        <td id="proj-perc-BELGAUJAU">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Menthe</td>
+                        <td>BELGAUMEN</td>
+                        <td id="proj-qty-BELGAUMEN">0</td>
+                        <td id="proj-perc-BELGAUMEN">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Pêche</td>
+                        <td>BELGAUPEC</td>
+                        <td id="proj-qty-BELGAUPEC">0</td>
+                        <td id="proj-perc-BELGAUPEC">0%</td>
+                    </tr>
+                    <tr class="sub-total">
+                        <td colspan="2">Total Pied Gauche</td>
+                        <td id="proj-total-pied-gauche">0</td>
+                        <td>100%</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Pied Droit Projection Table -->
+            <h4>Projection Pied Droit</h4>
+            <table class="result-table" id="projectionTablePiedDroit">
+                <thead>
+                    <tr>
+                        <th>Couleur</th>
+                        <th>SKU</th>
+                        <th>Quantité à Commander</th>
+                        <th>%</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Rouge</td>
+                        <td>BELDROROU</td>
+                        <td id="proj-qty-BELDROROU">0</td>
+                        <td id="proj-perc-BELDROROU">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Noir</td>
+                        <td>BELDRONOI</td>
+                        <td id="proj-qty-BELDRONOI">0</td>
+                        <td id="proj-perc-BELDRONOI">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Blanc</td>
+                        <td>BELDROBLA</td>
+                        <td id="proj-qty-BELDROBLA">0</td>
+                        <td id="proj-perc-BELDROBLA">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Bleu</td>
+                        <td>BELDROBLE</td>
+                        <td id="proj-qty-BELDROBLE">0</td>
+                        <td id="proj-perc-BELDROBLE">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Vert</td>
+                        <td>BELDROVER</td>
+                        <td id="proj-qty-BELDROVER">0</td>
+                        <td id="proj-perc-BELDROVER">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Jaune</td>
+                        <td>BELDROJAU</td>
+                        <td id="proj-qty-BELDROJAU">0</td>
+                        <td id="proj-perc-BELDROJAU">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Menthe</td>
+                        <td>BELDROMEN</td>
+                        <td id="proj-qty-BELDROMEN">0</td>
+                        <td id="proj-perc-BELDROMEN">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Pêche</td>
+                        <td>BELDROPEC</td>
+                        <td id="proj-qty-BELDROPEC">0</td>
+                        <td id="proj-perc-BELDROPEC">0%</td>
+                    </tr>
+                    <tr class="sub-total">
+                        <td colspan="2">Total Pied Droit</td>
+                        <td id="proj-total-pied-droit">0</td>
+                        <td>100%</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function processFile() {
+            const input = document.getElementById('fileInput');
+            if (input.files.length === 0) {
+                alert("Veuillez sélectionner un fichier.");
+                return;
+            }
+
+            const file = input.files[0];
+            const fileName = file.name;
+
+            if (fileName.endsWith(".csv")) {
+                processCSV(file);
+            } else if (fileName.endsWith(".xlsx")) {
+                processExcel(file);
+            } else {
+                alert("Format de fichier non supporté. Veuillez importer un fichier CSV ou Excel.");
+            }
+        }
+
+        function processCSV(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                const lines = text.split("\n");
+                const header = lines[0].split(",");
+                const skuIndex = findColumnIndex(header, "sku");
+
+                if (skuIndex === -1) {
+                    alert("Le fichier CSV ne contient pas de colonne 'sku'.");
+                    return;
+                }
+
+                const skuCounts = {};
+                let totalProducts = 0;
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i];
+                    if (!line.trim()) continue;
+                    const columns = line.split(",");
+                    let skuField = columns[skuIndex];
+
+                    // Extract individual SKUs from the field (cleaning data)
+                    const skus = skuField.match(/[A-Z]{9}/g);
+                    if (skus) {
+                        skus.forEach(sku => {
+                            if (!skuCounts[sku]) {
+                                skuCounts[sku] = 0;
+                            }
+                            skuCounts[sku]++;
+                        });
+                    }
+
+                    // Count complete SKUs (36 characters, representing four parts)
+                    if (skuField.match(/[A-Z]{36}/g)) {
+                        totalProducts++;
+                    }
+                }
+
+                updateTableWithCounts(skuCounts);
+                document.getElementById('totalProducts').textContent = totalProducts;
+            };
+            reader.readAsText(file);
+        }
+
+        function processExcel(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                const header = json[0];
+                const skuIndex = findColumnIndex(header, "sku");
+
+                if (skuIndex === -1) {
+                    alert("Le fichier Excel ne contient pas de colonne 'sku'.");
+                    return;
+                }
+
+                const skuCounts = {};
+                let totalProducts = 0;
+                for (let i = 1; i < json.length; i++) {
+                    const row = json[i];
+                    if (!row || row.length === 0) continue; // Ignore empty rows
+                    let skuField = row[skuIndex];
+
+                    // Extract individual SKUs from the field (cleaning data)
+                    const skus = skuField.match(/[A-Z]{9}/g);
+                    if (skus) {
+                        skus.forEach(sku => {
+                            if (!skuCounts[sku]) {
+                                skuCounts[sku] = 0;
+                            }
+                            skuCounts[sku]++;
+                        });
+                    }
+
+                    // Count complete SKUs (36 characters, representing four parts)
+                    if (skuField.match(/[A-Z]{36}/g)) {
+                        totalProducts++;
+                    }
+                }
+
+                updateTableWithCounts(skuCounts);
+                document.getElementById('totalProducts').textContent = totalProducts;
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function findColumnIndex(header, columnName) {
+            return header.findIndex(col => col.trim().toLowerCase() === columnName.toLowerCase());
+        }
+
+        function updateTableWithCounts(skuCounts) {
+            let totalAssise = 0;
+            let totalDossier = 0;
+            let totalPiedGauche = 0;
+            let totalPiedDroit = 0;
+
+            for (const sku in skuCounts) {
+                if (skuCounts.hasOwnProperty(sku)) {
+                    const quantity = skuCounts[sku];
+                    const qtyCell = document.getElementById(`qty-${sku}`);
+                    const percCell = document.getElementById(`perc-${sku}`);
+
+                    if (qtyCell && percCell) {
+                        qtyCell.textContent = quantity;
+
+                        if (sku.startsWith("BELSI")) {
+                            totalAssise += quantity;
+                        } else if (sku.startsWith("BELDOS")) {
+                            totalDossier += quantity;
+                        } else if (sku.startsWith("BELGAU")) {
+                            totalPiedGauche += quantity;
+                        } else if (sku.startsWith("BELDRO")) {
+                            totalPiedDroit += quantity;
+                        }
+                    }
+                }
+            }
+
+            // Update percentage and total columns
+            updatePercentagesAndTotals(totalAssise, "BELSI", "total-assise");
+            updatePercentagesAndTotals(totalDossier, "BELDOS", "total-dossier");
+            updatePercentagesAndTotals(totalPiedGauche, "BELGAU", "total-pied-gauche");
+            updatePercentagesAndTotals(totalPiedDroit, "BELDRO", "total-pied-droit");
+        }
+
+        function updatePercentagesAndTotals(total, skuPrefix, totalCellId) {
+            if (total > 0) {
+                document.getElementById(totalCellId).textContent = total;
+
+                const percentageCells = document.querySelectorAll(`[id^="perc-${skuPrefix}"]`);
+                percentageCells.forEach(cell => {
+                    const qtyCellId = cell.id.replace("perc", "qty");
+                    const qty = parseInt(document.getElementById(qtyCellId).textContent);
+                    cell.textContent = ((qty / total) * 100).toFixed(2) + "%";
+                });
+            }
+        }
+
+        function calculateProjection() {
+            const moq = parseInt(document.getElementById('moqInput').value);
+            if (isNaN(moq) || moq <= 0) {
+                alert("Veuillez entrer une valeur valide pour la MOQ.");
+                return;
+            }
+
+            calculateProjectionForPart("BELSI", "proj-qty-BELSIEROU", "projectionTableAssise", "total-assise", "proj-total-assise", moq);
+            calculateProjectionForPart("BELDOS", "proj-qty-BELDOSROU", "projectionTableDossier", "total-dossier", "proj-total-dossier", moq);
+            calculateProjectionForPart("BELGAU", "proj-qty-BELGAUROU", "projectionTablePiedGauche", "total-pied-gauche", "proj-total-pied-gauche", moq);
+            calculateProjectionForPart("BELDRO", "proj-qty-BELDROROU", "projectionTablePiedDroit", "total-pied-droit", "proj-total-pied-droit", moq);
+        }
+
+        function calculateProjectionForPart(skuPrefix, qtyPrefix, tableId, totalId, totalProjectionId, moq) {
+            const total = parseInt(document.getElementById(totalId).textContent);
+            let totalProjected = 0;
+
+            const table = document.getElementById(tableId);
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length === 4) {
+                    const sku = cells[1].textContent;
+                    if (sku.startsWith(skuPrefix)) {
+                        const qtyCell = document.getElementById(`qty-${sku}`);
+                        if (qtyCell) {
+                            const quantity = parseInt(qtyCell.textContent);
+                            const projectedQty = Math.round((quantity / total) * moq);
+                            document.getElementById(`proj-qty-${sku}`).textContent = projectedQty;
+                            document.getElementById(`proj-perc-${sku}`).textContent = ((projectedQty / moq) * 100).toFixed(2) + "%";
+                            totalProjected += projectedQty;
+                        }
+                    }
+                }
+            });
+
+            document.getElementById(totalProjectionId).textContent = totalProjected;
+        }
+
+        function calculateTotalProducts() {
+            const totalProducts = document.getElementById('totalProducts').textContent;
+            alert(`Nombre total de produits: ${totalProducts}`);
+        }
+    </script>
+</body>
+</html>
