@@ -4,67 +4,53 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock à Livrer App</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            max-width: 800px;
-            margin: auto;
-            background: #fff;
-            padding: 20px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-        .upload-section, .result-section, .projection-section {
-            margin-bottom: 20px;
-        }
-        .result-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .result-table th, .result-table td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: center;
-        }
-        .result-table th {
-            background-color: #f2f2f2;
-        }
-        .result-table .group-header {
-            background-color: #e6e6e6;
-            font-weight: bold;
-            text-align: left;
-            padding-left: 10px;
-        }
-        .result-table .sub-total {
-            background-color: #f9f9f9;
-            font-weight: bold;
-        }
-    </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">function sendEmail() {
-            const recipient = confirm("Envoyer à Arthur ou Léo?") ? "arthur.gaudenz@polimair.fr" : "leo.gaudenz@polimair.fr";
-            const subject = "Analyse Stock et MOQ";
-            const body = `Bonjour,
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <script>
+        function exportPageToPDF() {
+            const { jsPDF } = window.jspdf;
+            const element = document.body;
 
-Voici le rapport d'analyse du stock ainsi que les projections de MOQ basées sur les ventes à date.
-Le tableau contient des informations détaillées sur les différentes couleurs et types de pièces, ainsi que les quantités nécessaires pour chaque partie.
+            html2canvas(element, {
+                scrollY: 0, // Capture la page entière
+                useCORS: true
+            }).then((canvas) => {
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                
+                // Dimensions de la page A4 en mm
+                const pageWidth = 210;
+                const pageHeight = 297;
 
-N'hésite pas à me faire part de tes remarques ou questions.
+                // Dimensions de l'image dans le PDF
+                const imgWidth = pageWidth;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-Cordialement,`;
+                // Découpage de l'image pour couvrir toute la hauteur du PDF
+                let position = 0;
+                while (position < imgHeight) {
+                    const pageCanvas = document.createElement("canvas");
+                    pageCanvas.width = canvas.width;
+                    pageCanvas.height = Math.min(canvas.height, (pageHeight * canvas.width) / pageWidth);
 
-            window.location.href = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                    const ctx = pageCanvas.getContext("2d");
+                    ctx.drawImage(canvas, 0, position * (canvas.width / pageWidth), canvas.width, pageCanvas.height, 0, 0, canvas.width, pageCanvas.height);
+
+                    const imgData = pageCanvas.toDataURL("image/png");
+
+                    pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, (pageCanvas.height * imgWidth) / pageCanvas.width);
+
+                    position += pageCanvas.height / (canvas.width / pageWidth);
+                    if (position < imgHeight) {
+                        pdf.addPage();
+                    }
+                }
+
+                pdf.save("page_complete.pdf");
+            }).catch((error) => {
+                console.error("Erreur lors de l'exportation PDF :", error);
+            });
         }
-
-        // Set the current date in the import date span
-        document.addEventListener('DOMContentLoaded', () => {
-            const date = new Date();
-            const formattedDate = date.toLocaleDateString('fr-FR');
-            document.getElementById('importDate').textContent = formattedDate;
-        });
     </script>
 </head>
 <body>
@@ -75,10 +61,10 @@ Cordialement,`;
         <button onclick="calculateTotalProducts()">Nombre total de produits</button>
         <span id="totalProducts" style="font-weight: bold; margin-left: 10px;">0</span>
 
-        <!-- Upload Section -->
+        <!-- Import Section -->
         <div class="upload-section">
             <h3>Importer un fichier CSV ou Excel</h3>
-            <button onclick="sendEmail()">Envoyer par mail</button>
+            <button onclick="exportPageToPDF()">Exporter en PDF</button>
             <input type="file" id="fileInput" accept=".csv, .xlsx">
             <button onclick="processFile()">Importer et Analyser</button>
         </div>
