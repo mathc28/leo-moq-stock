@@ -4,10 +4,47 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock à Livrer App</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <link rel="stylesheet" href="style.css">
-    <script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .upload-section, .result-section, .projection-section {
+            margin-bottom: 20px;
+        }
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .result-table th, .result-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        .result-table th {
+            background-color: #f2f2f2;
+        }
+        .result-table .group-header {
+            background-color: #e6e6e6;
+            font-weight: bold;
+            text-align: left;
+            padding-left: 10px;
+        }
+        .result-table .sub-total {
+            background-color: #f9f9f9;
+            font-weight: bold;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
         function exportPageToPDF() {
             const { jsPDF } = window.jspdf;
             const element = document.body;
@@ -61,7 +98,7 @@
         <button onclick="calculateTotalProducts()">Nombre total de produits</button>
         <span id="totalProducts" style="font-weight: bold; margin-left: 10px;">0</span>
 
-        <!-- Import Section -->
+        <!-- Upload Section -->
         <div class="upload-section">
             <h3>Importer un fichier CSV ou Excel</h3>
             <button onclick="exportPageToPDF()">Exporter en PDF</button>
@@ -598,7 +635,6 @@
                 alert("Veuillez sélectionner un fichier.");
                 return;
             }
-
             const file = input.files[0];
             const fileName = file.name;
 
